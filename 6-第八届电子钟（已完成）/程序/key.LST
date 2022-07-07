@@ -1,0 +1,118 @@
+C51 COMPILER V9.00   KEY                                                                   04/04/2022 09:04:21 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE KEY
+OBJECT MODULE PLACED IN key.OBJ
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE key.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include"key.h"
+   2          
+   3          extern u8 trg,cont,set,set_n,l1,count_L1;
+   4          extern char sec ,min ,hour ,sec_n ,min_n ,hour_n ;
+   5          
+   6          extern bit mode,L1_flag_1,temp_table;
+   7          extern char;
+   8          
+   9          void Keyscanf()
+  10          {
+  11   1              u8 readdata = P3 ^ 0xff;
+  12   1              trg = readdata & (readdata ^ cont);
+  13   1              cont = readdata;        
+  14   1      }
+  15          
+  16          void Keyproc()
+  17          {
+  18   1              Keyscanf();
+  19   1              if(trg & 0x0f)
+  20   1              {       
+  21   2                      if(L1_flag_1)
+  22   2                      {
+  23   3                              L1_flag_1 = 0;
+  24   3                              l1 = 0;
+  25   3                              count_L1 = 0;
+  26   3                              P0 = 0xff; P2 = (P2 & 0x1f) | 0x80;P2 &= 0x1f;
+  27   3                      } 
+  28   2                                      
+  29   2                      if(trg & 0x01)
+  30   2                      {       
+  31   3                              if(mode == 0)
+  32   3                              {
+  33   4                                      set++;
+  34   4                                      if(set >= 4){set = 0;init_time();}
+  35   4                              }
+  36   3                              
+  37   3                      }
+  38   2                      if(trg & 0x02)
+  39   2                      {
+  40   3                              mode = 1;
+  41   3                              if(mode == 1)
+  42   3                              {
+  43   4                                      set_n++;
+  44   4                                      if(set_n >= 4){set_n = 0;mode = 0;}
+  45   4                              
+  46   4                              }
+  47   3                      }
+  48   2              
+  49   2                      if(trg & 0x04)
+  50   2                      {
+  51   3                              if(mode == 0)
+  52   3                              {
+  53   4                                      if(set == 1){hour++;if(hour > 23)hour = 23;}
+  54   4                                      if(set == 2){min++;if(min > 59)min = 59;}
+  55   4                                      if(set == 3){sec++;if(sec > 59)sec = 59;}                                       
+C51 COMPILER V9.00   KEY                                                                   04/04/2022 09:04:21 PAGE 2   
+
+  56   4                              }
+  57   3                              if(mode == 1)
+  58   3                              {
+  59   4                                      if(set_n == 1){hour_n++;if(hour_n > 23)hour_n = 23;}
+  60   4                                      if(set_n == 2){min_n++;if(min_n > 59)min_n = 59;}
+  61   4                                      if(set_n == 3){sec_n++;if(sec_n > 59)sec_n = 59;}                                       
+  62   4                              }
+  63   3                      }
+  64   2              
+  65   2                      if(trg & 0x08)
+  66   2                      {
+  67   3                              if(mode == 0)
+  68   3                              {
+  69   4                                      if(set == 1){hour--;if(hour < 0)hour = 0;}
+  70   4                                      if(set == 2){min--;if(min < 0)min = 0;}
+  71   4                                      if(set == 3){sec--;if(sec < 0)sec = 0;}                                 
+  72   4                              }
+  73   3                              if(mode == 1)
+  74   3                              {
+  75   4                                      if(set_n == 1){hour_n--;if(hour_n < 0)hour_n = 0;}
+  76   4                                      if(set_n == 2){min_n--;if(min_n < 0)min_n = 0;}
+  77   4                                      if(set_n == 3){sec_n--;if(sec_n < 0)sec_n = 0;}                                 
+  78   4                              }       
+  79   3                      }
+  80   2      }
+  81   1                      if(cont & 0x08)
+  82   1                      {
+  83   2                              if(set == 0&&set_n == 0)temp_table = 1; 
+  84   2                      }
+  85   1                      else
+  86   1                      {
+  87   2                              if(set == 0&&set_n == 0)temp_table = 0;
+  88   2                      }       
+  89   1              
+  90   1                      
+  91   1      
+  92   1      
+  93   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    372    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

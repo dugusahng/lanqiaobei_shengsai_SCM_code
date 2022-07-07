@@ -1,0 +1,6 @@
+"key.obj",
+"main.obj",
+"onewire.obj",
+"ds1302.obj" 
+TO "13032095" 
+RAMSIZE(256) 

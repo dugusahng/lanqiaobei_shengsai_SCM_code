@@ -1,0 +1,6 @@
+"main.obj",
+"key.obj",
+"iic.obj",
+"ds1302.obj" 
+TO "模拟智能灌溉系统" 
+RAMSIZE(256) 

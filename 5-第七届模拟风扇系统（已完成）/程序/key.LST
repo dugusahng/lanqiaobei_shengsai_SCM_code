@@ -1,0 +1,74 @@
+C51 COMPILER V9.00   KEY                                                                   04/03/2022 21:51:36 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE KEY
+OBJECT MODULE PLACED IN key.OBJ
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE key.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include"reg52.h"
+   2          #define u8 unsigned char
+   3          #define u16 unsigned int
+   4          
+   5          u8 trg,cont;
+   6          extern bit s7_flag;
+   7          extern  u8 work_mode,count_sec,pwm_duty;
+   8          extern u16 sec;
+   9          
+  10          void HC573(u8 n,u8 value);
+  11          void Keyscanf()
+  12          {
+  13   1              u8 ReadData = P3 ^ 0xff;
+  14   1              trg = ReadData & (ReadData ^ cont);
+  15   1              cont = ReadData;
+  16   1      }
+  17          
+  18          void Keyproc()
+  19          {
+  20   1              Keyscanf();
+  21   1              if(trg & 0x01) //s7
+  22   1              {
+  23   2                      s7_flag = ~s7_flag;     
+  24   2              }       
+  25   1              if(trg & 0x02)    //s6
+  26   1              {
+  27   2                      sec = 0 ;
+  28   2              }
+  29   1              if(trg & 0x04)    //s5
+  30   1              {
+  31   2                      if(sec == 0)
+  32   2                      {
+  33   3                       sec = 60;
+  34   3                      }
+  35   2                      else if(sec <= 60)
+  36   2                      {
+  37   3                         sec = 120;
+  38   3                      }
+  39   2                      else if(sec <= 120)
+  40   2                      {
+  41   3                              sec = 0;
+  42   3                      } 
+  43   2              }
+  44   1              if(trg & 0x08)   //s4
+  45   1              {               
+  46   2                      work_mode++;
+  47   2                      if(work_mode >= 4)work_mode = 1;                                
+  48   2              }
+  49   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    103    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+C51 COMPILER V9.00   KEY                                                                   04/03/2022 21:51:36 PAGE 2   
+
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      2    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

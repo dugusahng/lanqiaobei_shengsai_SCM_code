@@ -1,0 +1,286 @@
+C51 COMPILER V9.00   MAIN                                                                  04/04/2022 13:17:41 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE main.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include"reg52.h"
+   2          #include"key.h"
+   3          #include"iic.h"
+   4          #define u8 unsigned char
+   5          #define u16 unsigned int
+   6          sfr AUXR = 0x8e;
+   7          
+   8          u8 code smg_du[] = {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90};
+   9          u8 code smg_we[] = {0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};
+  10          u8 table_v[8] = {0xc0,0xc0,0xc0,0xff,0xff,0xff,0xff,0xc1};
+  11          u8 table_f[8] = {0xff,0xff,0xff,0xff,0xff,0xff,0xff,0x8e};
+  12          
+  13          u8 count_key,count_dac,led;
+  14          u16 frequency,count_t,count_f,dac_rb2,dac,v3;
+  15          bit key_flag,dac_flag;
+  16          extern u8 trg = 0,cont = 0;
+  17          extern bit smg_flag = 0,led_flag = 0,fre_flag = 0,dac_mode = 0;
+  18          
+  19          void Timer0Init(void);
+  20          void Timer1Init(void);
+  21          void table_convert();
+  22          void LEDproc();
+  23          
+  24          void main()
+  25          {
+  26   1              P0 = 0x00; P2 = (P2 & 0x1f) | 0xa0; P2 &= 0x1f;
+  27   1              P0 = 0xff; P2 = (P2 & 0x1f) | 0x80; P2 &= 0x1f;
+  28   1              Timer0Init();
+  29   1              Timer1Init();
+  30   1              write_8591(102);                //2.0V   0-255           102/2=51  51*5= 255
+  31   1              while(1)
+  32   1              {
+  33   2                      if(dac_flag)
+  34   2                      {               
+  35   3                              v3 = Read_8591(3);                //Vrb2的值是0-255
+  36   3                              dac_rb2 = v3 * 100 / 51;         //dac_rb2的值是0-500
+  37   3                      
+  38   3                              if(dac_mode)
+  39   3                              {
+  40   4                                      dac = dac_rb2;
+  41   4                                      write_8591(v3);
+  42   4                              }                               
+  43   3                      }
+  44   2                              if(dac_mode == 0)
+  45   2                              {
+  46   3                                      dac = 200;
+  47   3                                      write_8591(102);
+  48   3                              }
+  49   2      
+  50   2                      EA = 0;
+  51   2                      LEDproc();
+  52   2                      EA = 1;
+  53   2                      if(key_flag){key_flag = 0; Keyproc();}
+  54   2                      table_convert();
+  55   2              }
+C51 COMPILER V9.00   MAIN                                                                  04/04/2022 13:17:41 PAGE 2   
+
+  56   1      }
+  57          
+  58          void Timer0isr() interrupt 1
+  59          {
+  60   1              count_f++;
+  61   1      }
+  62          
+  63          void display();
+  64          void Timer1isr() interrupt 3
+  65          {
+  66   1              count_key++;count_dac++;count_t++;
+  67   1      
+  68   1              if(count_dac >= 250){count_dac = 0;dac_flag = 1;}         //0.5s
+  69   1      
+  70   1              if(count_t >= 500)                 //1s
+  71   1              {
+  72   2                      count_t = 0;                    
+  73   2                      frequency = count_f;            //将 计数值 赋 给 频率
+  74   2                      count_f = 0;                            //计数值清零
+  75   2              }        
+  76   1      
+  77   1              if(count_key >= 6){count_key = 0;key_flag = 1;}                    //12ms
+  78   1      
+  79   1              display();
+  80   1      }
+  81          
+  82          void LEDproc()   //0x01,0x02,0x04,0x08
+  83          {                                                                               
+  84   1              static u8 x1,x2,x3,x4,x5;                       
+  85   1              if(led_flag)                              
+  86   1              {                                                                               
+  87   2                      if(fre_flag)
+  88   2                      {
+  89   3                              x1 = 0x00;x2 = 0x02;
+  90   3                      }
+  91   2                      else    
+  92   2                      {
+  93   3                              x1 = 0x01;x2 = 0x00;
+  94   3                      }
+  95   2              
+  96   2                      if(dac_rb2 < 150)
+  97   2                      {
+  98   3                              x3 = 0x00;
+  99   3                      }
+ 100   2                      if((dac_rb2 >= 150)&&(dac_rb2 < 250))
+ 101   2                      {
+ 102   3                              x3 = 0x04;
+ 103   3                      }
+ 104   2      
+ 105   2                      if((dac_rb2 >= 250)&&(dac_rb2 < 350))
+ 106   2                      {
+ 107   3                              x3 = 0x00;
+ 108   3                      }
+ 109   2                      if(dac_rb2 >= 350)
+ 110   2                      {
+ 111   3                              x3 = 0x04;
+ 112   3                      }
+ 113   2              
+ 114   2                      if(frequency < 1000)            
+ 115   2                      {                                               
+ 116   3                              x4 = 0x00;
+ 117   3                      }
+C51 COMPILER V9.00   MAIN                                                                  04/04/2022 13:17:41 PAGE 3   
+
+ 118   2                      if((frequency >= 1000)&&(frequency < 5000))
+ 119   2                      {       
+ 120   3                              x4 = 0x08;
+ 121   3                      }
+ 122   2                      if((frequency >= 5000)&&(frequency < 10000))
+ 123   2                      {       
+ 124   3                              x4 = 0x00;      
+ 125   3                      }
+ 126   2                      if(frequency >= 10000)
+ 127   2                      {       
+ 128   3                              x4 = 0x08;
+ 129   3                      }
+ 130   2              
+ 131   2                      if(dac_mode == 0)
+ 132   2                      {
+ 133   3                              x5 = 0x00;
+ 134   3                      }
+ 135   2                      if(dac_mode == 1)
+ 136   2                      {
+ 137   3                              x5 = 0x10;
+ 138   3                      }
+ 139   2                      P0 = ~(x1 | x2 | x3 | x4 | x5);P2 = (P2 & 0x1f) | 0x80; P2 &= 0x1f;             
+ 140   2              }
+ 141   1              else
+ 142   1              {
+ 143   2                      P0 = 0xff;P2 = (P2 & 0x1f) | 0x80; P2 &= 0x1f;
+ 144   2              } 
+ 145   1      }
+ 146          
+ 147          void display()
+ 148          {
+ 149   1              static u8 i;
+ 150   1              P0 = 0xff; P2 = (P2 & 0x1f) | 0xe0; P2 &= 0x1f;  
+ 151   1              P0 = smg_we[i]; P2 = (P2 & 0x1f) | 0xc0; P2 &= 0x1f;
+ 152   1              if(smg_flag)
+ 153   1              {               
+ 154   2                      if(fre_flag)    //f是频率
+ 155   2                      {       
+ 156   3                              P0 = table_f[i]; P2 = (P2 & 0x1f) | 0xe0; P2 &= 0x1f;
+ 157   3                      }
+ 158   2                      else              //v是电压
+ 159   2                      {
+ 160   3                              P0 = table_v[i]; P2 = (P2 & 0x1f) | 0xe0; P2 &= 0x1f;
+ 161   3                      }
+ 162   2              }
+ 163   1              else
+ 164   1              {
+ 165   2                      P0 = 0xff; P2 = (P2 & 0x1f) | 0xe0; P2 &= 0x1f;
+ 166   2              }
+ 167   1              i++;if(i >= 8)i = 0;
+ 168   1      }
+ 169          
+ 170          void table_convert()
+ 171          {
+ 172   1              if(smg_flag)
+ 173   1              {                                                                                //这里没有分成高3位和低4位     
+ 174   2                      if(fre_flag)                                            //问题二：如何分成2个数 计时
+ 175   2                                                                                                              //我没分开，要分开的话，
+ 176   2                      {                                                                                       //就如说num计低4位count计高3位
+ 177   3                                                                                                              //num++;                                                                                        
+ 178   3                              table_f[0] = smg_du[frequency % 10];    //if(num >= 9999）{count ++;num = 0 ;}这样就行
+ 179   3                              if(frequency < 10)
+C51 COMPILER V9.00   MAIN                                                                  04/04/2022 13:17:41 PAGE 4   
+
+ 180   3                              {
+ 181   4                                      table_f[1]  = 0xff;     
+ 182   4                              }
+ 183   3                              else 
+ 184   3                              {
+ 185   4                                      table_f[1] = smg_du[frequency / 10 % 10];
+ 186   4                              }
+ 187   3      
+ 188   3                              if(frequency < 100)
+ 189   3                              {
+ 190   4                                      table_f[2] = 0xff;                                      
+ 191   4                              }
+ 192   3                              else
+ 193   3                              {
+ 194   4                                      table_f[2] = smg_du[frequency / 100 % 10];                              
+ 195   4                              }
+ 196   3      
+ 197   3                              if(frequency < 1000)
+ 198   3                              {                       
+ 199   4                                      table_f[3] = 0xff;      
+ 200   4                              }
+ 201   3                              else
+ 202   3                              {                       
+ 203   4                                      table_f[3] = smg_du[frequency / 1000 % 10];                             
+ 204   4                              }
+ 205   3      
+ 206   3                              if(frequency < 10000)
+ 207   3                              {                       
+ 208   4                                      table_f[4] = 0xff;
+ 209   4                              }
+ 210   3                              else
+ 211   3                              {
+ 212   4                                      table_f[4] = smg_du[frequency / 10000 % 10];
+ 213   4                              }
+ 214   3      
+ 215   3                              if(frequency <= 100000)
+ 216   3                              {                       
+ 217   4                                      table_f[5] = 0xff;      
+ 218   4                              }
+ 219   3                              else
+ 220   3                              {
+ 221   4                                      table_f[5] = smg_du[frequency / 100000 % 10];
+ 222   4                              }               
+ 223   3                      }
+ 224   2      
+ 225   2                      else
+ 226   2                      {
+ 227   3                              table_v[0] = smg_du[dac % 10];
+ 228   3                              table_v[1] = smg_du[dac / 10 % 10];
+ 229   3                              table_v[2] = smg_du[dac / 100 % 10] & 0x7f;     
+ 230   3                      }
+ 231   2              }
+ 232   1      }
+ 233          
+ 234          void Timer0Init(void) //问题三：定时器初始化没有合并,合并后的AUXR和TMOD应是何值？？？
+ 235          {
+ 236   1              AUXR |= 0x80;                                             //我看学长那个程序，定时器合并AUXR不用管因为是 |=     ；              
+ 237   1              TMOD |= 0x04;                                             //我不知道为啥TMOD |= 0x04;我从STC上复制的是TMOD |= 0x02;
+ 238   1              TH0 = 0xff;                                                       //而且必须得是 0x04；还要把TOMD = 0xF0;给删了不删还不行
+ 239   1              TL0 = 0xff;     
+ 240   1              TR0 = 1;
+ 241   1              ET0 = 1;
+C51 COMPILER V9.00   MAIN                                                                  04/04/2022 13:17:41 PAGE 5   
+
+ 242   1              EA = 1;         
+ 243   1      }
+ 244          
+ 245          void Timer1Init(void)           //2毫秒@12.000MHz
+ 246          {
+ 247   1              AUXR |= 0x40;           //定时器时钟1T模式
+ 248   1              TMOD &= 0x0F;           //设置定时器模式
+ 249   1              TL1 = 0x40;             //设置定时初始值
+ 250   1              TH1 = 0xA2;             //设置定时初始值
+ 251   1              TF1 = 0;                //清除TF1标志
+ 252   1              TR1 = 1;                //定时器1开始计时
+ 253   1              ET1 = 1;
+ 254   1              EA = 1;
+ 255   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    978    ----
+   CONSTANT SIZE    =     18    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     39    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      6    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

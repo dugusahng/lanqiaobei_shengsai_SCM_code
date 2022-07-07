@@ -1,0 +1,54 @@
+	static a = 0x01;
+	static b = 0x80;
+	static count_led;
+
+	if(led_flag == 1)
+	{
+		if(work_mode == 1)
+		{		
+			HC573(4,~a);
+			if(turn_flag == 1)
+			{
+				a=_crol_(a,1);
+				turn_flag = 0;
+			}
+		}
+
+		if(work_mode == 2)
+		{
+			HC573(4,~b);
+			if(turn_flag == 1)
+			{
+				b=_cror_(b,1);
+				turn_flag = 0;
+			}
+		}
+
+		if(work_mode == 3)
+		{
+			if(turn_flag == 1)
+			{
+				turn_flag = 0;
+				if(++count_led == 5){count_led = 1;}
+			}	
+			if(count_led == 1){HC573(4,~0x81);}
+			if(count_led == 2){HC573(4,~0x42);}
+			if(count_led == 3){HC573(4,~0x24);}
+			if(count_led == 4){HC573(4,~0x18);}				
+		}
+
+		if(work_mode == 4)
+		{
+			if(turn_flag == 1)
+			{
+				turn_flag = 0;
+				if(++count_led == 5){count_led = 1;}
+			}		
+			if(count_led == 1){HC573(4,~0x18);}	
+			if(count_led == 2){HC573(4,~0x24);}					
+			if(count_led == 3){HC573(4,~0x42);}	
+			if(count_led == 4){HC573(4,~0x81);}				
+		
+	    }
+	}
+	else if(led_flag == 0){HC573(4,0xff);}

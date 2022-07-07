@@ -1,0 +1,253 @@
+C51 COMPILER V9.00   MAIN                                                                  04/04/2022 09:04:21 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE main.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include"reg52.h"
+   2          #include"key.h"
+   3          #include"onewire.h"
+   4          #include"ds1302.h"
+   5          #include "intrins.h"
+   6          sfr AUXR = 0x8e;
+   7          #define u8 unsigned char
+   8          #define u16 unsigned int
+   9          
+  10          u8 smg_duan[] = {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90};
+  11          u8 smg_wei[] = {0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};
+  12          u8 time[8],temp[8];
+  13           
+  14          u8 temperature;
+  15          u8 count_temp,count_key,flash;
+  16          u16 count_flash;
+  17          bit temp_flag,key_flag,flash_L1; 
+  18          extern char sec = 50,min = 59,hour = 23,sec_n = 0,min_n = 0,hour_n = 0;
+  19          extern u8 trg = 0,cont = 0,set = 0,set_n = 0,count_L1 = 0,l1 = 0; 
+  20          extern bit mode = 0,L1_flag_1 = 0,temp_table = 0;
+  21          
+  22          void Timer0Init(void);
+  23          void Delay100ms();
+  24          void table_convert();
+  25          
+  26          void main()
+  27          {
+  28   1              u8 x;
+  29   1      
+  30   1              P0 = 0x00; P2 = (P2 & 0x1f) | 0xa0; P2 &= 0x1f;
+  31   1              P0 = 0xff; P2 = (P2 & 0x1f) | 0x80; P2 &= 0x1f;
+  32   1      
+  33   1              for(x = 0;x < 10;x++)
+  34   1              {
+  35   2                      temperature = rd_temperature();
+  36   2                      Delay100ms();
+  37   2              }
+  38   1      
+  39   1              init_time();
+  40   1              Timer0Init();
+  41   1              while(1)
+  42   1              {
+  43   2      
+  44   2                      if(temp_flag){temp_flag = 0;temperature = rd_temperature();}
+  45   2      
+  46   2                      if(key_flag){key_flag = 0;Keyproc();}
+  47   2      
+  48   2                      if(L1_flag_1)
+  49   2                      {
+  50   3                      
+  51   3                              if(flash_L1)
+  52   3                              {
+  53   4                                      EA = 0; 
+  54   4                                      P0 = ~0x01 ; P2 = (P2 & 0x1f) | 0x80; P2 &= 0x1f;
+  55   4                                      EA = 1; 
+C51 COMPILER V9.00   MAIN                                                                  04/04/2022 09:04:21 PAGE 2   
+
+  56   4                              }       
+  57   3                              else 
+  58   3                              {       EA = 0; 
+  59   4                                      P0 = 0xff; P2 = (P2 & 0x1f) | 0x80; P2 &= 0x1f;
+  60   4                                      EA = 1; 
+  61   4                              }
+  62   3                      
+  63   3                      }
+  64   2                                              
+  65   2                      table_convert();
+  66   2                      if((set == 0)&&(set_n == 0)){read_ds1302();}                     
+  67   2              }
+  68   1      }
+  69          
+  70          void display();
+  71          void Timer0isr() interrupt 1
+  72          {
+  73   1              count_temp++;count_key++;count_flash++;count_L1++;      
+  74   1              if(count_temp >= 250){count_temp = 0;temp_flag = 1;}
+  75   1      
+  76   1              if(count_key >= 6){count_key = 0;key_flag = 1;}
+  77   1      
+  78   1              if(count_flash >= 500){count_flash = 0;flash = ~flash;}
+  79   1              if((mode == 0)&&(sec == sec_n)&&(min == min_n)&&(hour == hour_n))L1_flag_1 = 1;
+  80   1              
+  81   1              if(count_L1 >= 100)                //0.2s
+  82   1              {
+  83   2                      count_L1 = 0;
+  84   2                      flash_L1 = ~flash_L1;
+  85   2                      l1++;
+  86   2                              
+  87   2                      if(l1 >= 25)            //5s
+  88   2                      {               
+  89   3                                      L1_flag_1 = 0;
+  90   3                                      l1 = 0;
+  91   3                                      P2 = (P2 & 0x1f) | 0x80;P0 = 0xff;P2 &= 0x1f;
+  92   3                      }
+  93   2              }
+  94   1      
+  95   1      
+  96   1              display();      
+  97   1      }
+  98          
+  99          void display()
+ 100          {
+ 101   1              static u8 i;
+ 102   1              P0 = 0xff; P2 = (P2 & 0x1f) | 0xe0; P2 &= 0x1f;
+ 103   1              P0 = smg_wei[i]; P2 = (P2 & 0x1f) | 0xc0; P2 &= 0x1f;
+ 104   1              if(temp_table)
+ 105   1              {
+ 106   2                      P0 = temp[i]; P2 = (P2 & 0x1f) | 0xe0; P2 &= 0x1f;
+ 107   2              }
+ 108   1              else
+ 109   1              {
+ 110   2              P0 = time[i]; P2 = (P2 & 0x1f) | 0xe0; P2 &= 0x1f;
+ 111   2              }
+ 112   1               
+ 113   1              i++;if(i >= 8)i = 0;
+ 114   1      }
+ 115          
+ 116          void table_convert()
+ 117          {
+C51 COMPILER V9.00   MAIN                                                                  04/04/2022 09:04:21 PAGE 3   
+
+ 118   1      
+ 119   1              if((mode == 0)&&(temp_table == 0))
+ 120   1              {
+ 121   2                      if(set == 0)
+ 122   2                      {
+ 123   3                              time[0] = smg_duan[sec % 10];
+ 124   3                              time[1] = smg_duan[sec / 10];
+ 125   3                              time[2] = 0xbf;
+ 126   3                              time[3] = smg_duan[min % 10];
+ 127   3                              time[4] = smg_duan[min / 10];
+ 128   3                              time[5] = 0xbf;
+ 129   3                              time[6] = smg_duan[hour % 10];
+ 130   3                              time[7] = smg_duan[hour / 10];
+ 131   3                      }
+ 132   2      
+ 133   2                      if(set == 1)
+ 134   2                      {
+ 135   3                              time[0] = smg_duan[sec % 10];
+ 136   3                              time[1] = smg_duan[sec / 10];
+ 137   3                              time[2] = 0xbf;
+ 138   3                              time[3] = smg_duan[min % 10];
+ 139   3                              time[4] = smg_duan[min / 10];
+ 140   3                              time[5] = 0xbf;
+ 141   3                              time[6] = smg_duan[hour % 10] | flash;
+ 142   3                              time[7] = smg_duan[hour / 10] | flash;
+ 143   3                      }
+ 144   2      
+ 145   2                      if(set == 2)
+ 146   2                      {
+ 147   3                              time[0] = smg_duan[sec % 10];
+ 148   3                              time[1] = smg_duan[sec / 10];
+ 149   3                              time[2] = 0xbf;
+ 150   3                              time[3] = smg_duan[min % 10] | flash;
+ 151   3                              time[4] = smg_duan[min / 10] | flash;
+ 152   3                              time[5] = 0xbf;
+ 153   3                              time[6] = smg_duan[hour % 10];
+ 154   3                              time[7] = smg_duan[hour / 10];
+ 155   3                      }
+ 156   2      
+ 157   2                      if(set == 3)
+ 158   2                      {
+ 159   3                              time[0] = smg_duan[sec % 10] | flash;
+ 160   3                              time[1] = smg_duan[sec / 10] | flash;
+ 161   3                              time[2] = 0xbf;
+ 162   3                              time[3] = smg_duan[min % 10];
+ 163   3                              time[4] = smg_duan[min / 10];
+ 164   3                              time[5] = 0xbf;
+ 165   3                              time[6] = smg_duan[hour % 10];
+ 166   3                              time[7] = smg_duan[hour / 10];
+ 167   3                      }
+ 168   2      
+ 169   2              }
+ 170   1      
+ 171   1              if((mode == 1)&&(temp_table == 0))
+ 172   1              {
+ 173   2                      time[0] = smg_duan[sec_n % 10];
+ 174   2                      time[1] = smg_duan[sec_n / 10];
+ 175   2                      time[2] = 0xbf;
+ 176   2                      time[3] = smg_duan[min_n % 10];
+ 177   2                      time[4] = smg_duan[min_n / 10];
+ 178   2                      time[5] = 0xbf;
+ 179   2                      time[6] = smg_duan[hour_n % 10];
+C51 COMPILER V9.00   MAIN                                                                  04/04/2022 09:04:21 PAGE 4   
+
+ 180   2                      time[7] = smg_duan[hour_n / 10];        
+ 181   2              }                                                       
+ 182   1      
+ 183   1              if(temp_table)
+ 184   1              {
+ 185   2                      temp[0] = 0xc6;
+ 186   2                      temp[1] = smg_duan[temperature % 10];
+ 187   2                      temp[2] = smg_duan[temperature / 10];
+ 188   2                      temp[3] = 0xff;
+ 189   2                      temp[4] = 0xff;
+ 190   2                      temp[5] = 0xff;
+ 191   2                      temp[6] = 0xff;
+ 192   2                      temp[7] = 0xff;
+ 193   2              }
+ 194   1      }
+ 195          
+ 196          void Timer0Init(void)           //2毫秒@12.000MHz
+ 197          {
+ 198   1              AUXR |= 0x80;           //定时器时钟1T模式
+ 199   1              TMOD &= 0xF0;           //设置定时器模式
+ 200   1              TL0 = 0x40;             //设置定时初始值
+ 201   1              TH0 = 0xA2;             //设置定时初始值
+ 202   1              TF0 = 0;                //清除TF0标志
+ 203   1              TR0 = 1;                //定时器0开始计时
+ 204   1              ET0 = 1;
+ 205   1              EA = 1;
+ 206   1      }
+ 207          
+ 208          void Delay100ms()               //@12.000MHz
+ 209          {
+ 210   1              unsigned char i, j, k;
+ 211   1      
+ 212   1              _nop_();
+ 213   1              _nop_();
+ 214   1              i = 5;
+ 215   1              j = 144;
+ 216   1              k = 71;
+ 217   1              do
+ 218   1              {
+ 219   2                      do
+ 220   2                      {
+ 221   3                              while (--k);
+ 222   3                      } while (--j);
+ 223   2              } while (--i);
+ 224   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    998    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     53       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      6    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

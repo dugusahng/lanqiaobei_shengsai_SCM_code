@@ -1,0 +1,93 @@
+C51 COMPILER V9.00   KEY                                                                   04/03/2022 19:47:55 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE KEY
+OBJECT MODULE PLACED IN key.OBJ
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE key.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include"reg52.h"
+   2          #include"iic.h"
+   3          
+   4          u8 trg,cont;
+   5          extern bit work_mode,buzz_flag,hum_val_flag,s6_flag,irr_flag;
+   6          extern u8 hum;
+   7          extern char hum_val;
+   8          
+   9          void Keyscanf()                          //按键扫描
+  10          {
+  11   1              u8 ReadData = P3^0xff;
+  12   1              trg = ReadData &(ReadData ^ cont);
+  13   1              cont = ReadData;
+  14   1      }
+  15          
+  16          void Keyproc()                     
+  17          {       
+  18   1              Keyscanf();
+  19   1      
+  20   1              if(trg & 0x01)       //S7
+  21   1              {
+  22   2                      work_mode = ~work_mode;  //改变工作状态 
+  23   2              }
+  24   1                                      
+  25   1              if(trg & 0x02)         //s6
+  26   1              {
+  27   2      
+  28   2                      if(work_mode == 0)
+  29   2                      {
+  30   3                              s6_flag = ~s6_flag;                                      
+  31   3                              hum_val_flag = ~hum_val_flag;       //使阈值改变的开关
+  32   3      
+  33   3                      }
+  34   2                      
+  35   2                      if(work_mode == 1)                       
+  36   2                      {
+  37   3                              buzz_flag = ~buzz_flag;           //关闭,打开蜂鸣器的标志                                                                                                                                                                                                                                                    
+  38   3                      }
+  39   2                                                                                                                                                                                                                      
+  40   2              }
+  41   1      
+  42   1              if(trg & 0x04)   //s5
+  43   1              {
+  44   2                              
+  45   2                      irr_flag = 1;                              //开启灌溉,打开继电器
+  46   2                                                                              
+  47   2                      if((hum_val_flag == 1)&&(work_mode == 0))               //湿度阈值增
+  48   2                      {                       
+  49   3                              hum_val++;
+  50   3                      if(hum_val >= 99) hum_val = 99;
+  51   3                              write_byte_at24c02(0x00,hum_val); 
+  52   3                      }
+  53   2                              
+  54   2              }
+  55   1                      
+C51 COMPILER V9.00   KEY                                                                   04/03/2022 19:47:55 PAGE 2   
+
+  56   1              if(trg & 0x08)     //s4
+  57   1              {       
+  58   2                      
+  59   2                      irr_flag = 0;                     //关闭灌溉，关闭继电器
+  60   2                                              
+  61   2                      if((hum_val_flag == 1)&&(work_mode == 0))       //湿度阈值减
+  62   2                      {                       
+  63   3                              hum_val--;
+  64   3                              if(hum_val <= 0)        hum_val = 0; 
+  65   3                          write_byte_at24c02(0x00, hum_val);     
+  66   3                      }                       
+  67   2              }       
+  68   1      }       
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    108    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      2    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

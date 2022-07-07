@@ -1,0 +1,6 @@
+"main.obj",
+"key.obj",
+"iic.obj",
+"onewire.obj" 
+TO "第十二届第一次" 
+RAMSIZE(256) 

@@ -1,0 +1,80 @@
+C51 COMPILER V9.00   KEY                                                                   04/08/2022 08:29:21 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE KEY
+OBJECT MODULE PLACED IN key.OBJ
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE key.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include"key.h"
+   2          
+   3          extern u8 trg,cont;
+   4          extern int VP1,VP3; 
+   5          extern bit VIN_mode,table_flag;
+   6          
+   7          void Keyscnaf()
+   8          {
+   9   1              u8 readdata = P3 ^ 0xff;
+  10   1              trg = readdata &(readdata ^ cont);
+  11   1              cont = readdata; 
+  12   1      }
+  13          
+  14          void Keyproc()
+  15          {
+  16   1              Keyscnaf();
+  17   1              if(trg & 0x01)//s7 -
+  18   1              {
+  19   2                      if(table_flag)
+  20   2                      {
+  21   3                              if(VIN_mode)
+  22   3                              {
+  23   4                                      VP3 -= 20;if(VP3 <= 0)VP3 = 0;
+  24   4                              }
+  25   3                              else
+  26   3                              {
+  27   4                                      VP1 -= 20;if(VP1 <= 0)VP1 = 0;
+  28   4                              }
+  29   3                      }
+  30   2              }
+  31   1              if(trg & 0x02)//s6 +
+  32   1              {
+  33   2                      if(table_flag)
+  34   2                      {
+  35   3                              if(VIN_mode)
+  36   3                              {
+  37   4                                      VP3 += 20;if(VP3 >= 500)VP3 = 500;
+  38   4                              }
+  39   3                              else
+  40   3                              {
+  41   4                                      VP1 += 20;if(VP1 >= 500)VP1 = 500;
+  42   4                              }
+  43   3                      }
+  44   2              }
+  45   1              if(trg & 0x04)//s5
+  46   1              {
+  47   2                      table_flag = ~table_flag;
+  48   2              }
+  49   1              if(trg & 0x08)//s4
+  50   1              {
+  51   2                      VIN_mode = ~VIN_mode;
+  52   2              }
+  53   1      }
+  54          
+  55           
+C51 COMPILER V9.00   KEY                                                                   04/08/2022 08:29:21 PAGE 2   
+
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    176    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,17 @@
+<html>
+<body>
+<pre>
+<h1>礦ision Build Log</h1>
+<h2>Project:</h2>
+C:\Users\liujiabo\Desktop\蓝桥杯\真题练习\13-第十二届模拟（已完成）\程序\第十二届模拟.uvproj
+Project File Date:  04/01/2022
+
+<h2>Output:</h2>
+Build target 'Target 1'
+compiling main.c...
+compiling key.c...
+compiling iic.c...
+linking...
+Program Size: data=64.5 xdata=0 code=1895
+creating hex file from "第十二届模拟"...
+"第十二届模拟" - 0 Error(s), 0 Warning(s).

@@ -1,0 +1,151 @@
+C51 COMPILER V9.00   MAIN                                                                  04/02/2022 15:55:49 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE main.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include"reg52.h"
+   2          #include"key.h"
+   3          #include"iic.h"
+   4          #include"onewire.h"
+   5          #include "intrins.h"
+   6          sfr AUXR = 0x8e;
+   7          #define u8 unsigned char
+   8          #define u16 unsigned int
+   9          
+  10          u8 code smg_du[] = {0xC0,0xF9,0xA4,0xB0,0x99,0x92,0x82,0xF8,0x80,0x90};
+  11          u8 code smg_we[] = {0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};
+  12          u8 temp_table[8] = {0xC0,0xC0,0xFF,0xFF,0xC0,0xC0,0xC0,0xC0};
+  13          
+  14          u8 temperature;
+  15          u8 count_key,count_temp;
+  16          bit key_flag,temp_flag;
+  17          extern u8 trg = 0,cont = 0;
+  18          extern char temp_up = 30,temp_down = 15;
+  19          
+  20          void HC573(u8 n,u8 value);
+  21          void Timer0Init(void);
+  22          void Delay50ms();
+  23          void table_convert();
+  24          void Relayproc();
+  25          
+  26          void main()
+  27          {
+  28   1              u8 x;
+  29   1              HC573(5,0x00);
+  30   1              HC573(4,0xff);
+  31   1              temp_down = read_24c02(0x01);
+  32   1              temp_up = read_24c02(0x00);
+  33   1              for(x = 0;x <= 10;x++){temperature = rd_temperature();Delay50ms();}
+  34   1              Timer0Init();
+  35   1              while(1)
+  36   1              {
+  37   2                      table_convert();
+  38   2                      Relayproc();    
+  39   2                      if(key_flag){key_flag = 0;Keyproc();}
+  40   2      
+  41   2                      if(temp_flag){temp_flag = 0;temperature = rd_temperature();}
+  42   2              }
+  43   1      }
+  44          
+  45          void display();
+  46          void Timer0isr() interrupt 1
+  47          {       
+  48   1              count_key++;count_temp++;
+  49   1              if(count_key >= 6){count_key = 0;key_flag = 1;}
+  50   1              if(count_temp >= 250){count_temp = 0;temp_flag = 1;}
+  51   1              display();
+  52   1      }
+  53          
+  54          void Relayproc()
+  55          {
+C51 COMPILER V9.00   MAIN                                                                  04/02/2022 15:55:49 PAGE 2   
+
+  56   1              if(temperature < temp_down)
+  57   1              {
+  58   2                      HC573(5,0x10);
+  59   2              }
+  60   1              else
+  61   1              {
+  62   2                      HC573(5,0x00);
+  63   2              }
+  64   1      }
+  65          
+  66          void display()
+  67          {
+  68   1              static u8 i;
+  69   1              HC573(7,0xff);
+  70   1              HC573(6,smg_we[i]);
+  71   1              HC573(7,temp_table[i]);
+  72   1              i++; if(i >= 8)i = 0;   
+  73   1      }
+  74          
+  75          void table_convert()
+  76          {
+  77   1              temp_table[0] = smg_du[temperature % 10];
+  78   1              temp_table[1] = smg_du[temperature / 10];
+  79   1              temp_table[4] = smg_du[temp_down % 10];
+  80   1              temp_table[5] = smg_du[temp_down / 10];
+  81   1              temp_table[6] = smg_du[temp_up % 10];
+  82   1              temp_table[7] = smg_du[temp_up / 10];           
+  83   1      }
+  84          
+  85          void HC573(u8 n,u8 value)
+  86          {
+  87   1              switch(n)
+  88   1              {
+  89   2                      case 4: P2 = (P2 & 0x1f) | 0x80; P0 = value; P2 &= 0x1f; break;
+  90   2                      case 5: P2 = (P2 & 0x1f) | 0xa0; P0 = value; P2 &= 0x1f; break;
+  91   2                      case 6: P2 = (P2 & 0x1f) | 0xc0; P0 = value; P2 &= 0x1f; break;
+  92   2                      case 7: P2 = (P2 & 0x1f) | 0xe0; P0 = value; P2 &= 0x1f; break;
+  93   2              }
+  94   1      }
+  95          
+  96          void Timer0Init(void)           //2毫秒@12.000MHz
+  97          {
+  98   1              AUXR |= 0x80;           //定时器时钟1T模式
+  99   1              TMOD &= 0xF0;           //设置定时器模式
+ 100   1              TL0 = 0x40;             //设置定时初始值
+ 101   1              TH0 = 0xA2;             //设置定时初始值
+ 102   1              TF0 = 0;                //清除TF0标志
+ 103   1              TR0 = 1;                //定时器0开始计时
+ 104   1              ET0 = 1;
+ 105   1              EA = 1;
+ 106   1      }
+ 107          
+ 108          void Delay50ms()                //@12.000MHz
+ 109          {
+ 110   1              unsigned char i, j, k;
+ 111   1      
+ 112   1              _nop_();
+ 113   1              _nop_();
+ 114   1              i = 3;
+ 115   1              j = 72;
+ 116   1              k = 161;
+ 117   1              do
+C51 COMPILER V9.00   MAIN                                                                  04/02/2022 15:55:49 PAGE 3   
+
+ 118   1              {
+ 119   2                      do
+ 120   2                      {
+ 121   3                              while (--k);
+ 122   3                      } while (--j);
+ 123   2              } while (--i);
+ 124   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    465    ----
+   CONSTANT SIZE    =     18    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     16       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

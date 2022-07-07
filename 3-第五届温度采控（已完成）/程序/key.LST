@@ -1,0 +1,111 @@
+C51 COMPILER V9.00   KEY                                                                   04/03/2022 20:15:39 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE KEY
+OBJECT MODULE PLACED IN key.OBJ
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE key.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include "key.h"
+   2          
+   3          u8 down_count;
+   4          extern u8 trg,cont,Tmin,Tmax;   
+   5          extern bit error_flag,set_flag;
+   6          u8 key_number[8];
+   7          extern u8 smg_duan[],down_table[];
+   8          
+   9          void keyscanf()                  //setkbd和getkbd宏定义放在了 iic头文件里了     主要是输入和检测功能
+  10          {
+  11   1              u8 readdata;
+  12   1              setkbd(0xf0);             //高四位置0有按键按下 低四位会有置被拉低
+  13   1              readdata = getkbd;         //获取低四位的情况
+  14   1              setkbd(0x0f);                    //低四位置0有按键按下 高四位会有置被拉低
+  15   1              readdata = (readdata | getkbd) ^ 0xff;     //将得到的值合到一块 异或为了置1 其余置0
+  16   1      
+  17   1              trg = readdata & (readdata ^ cont);                 //若按键一直按第一次调用为有效值 之后为0
+  18   1              cont = readdata;                                                 //若按键一直按一直为有效值
+  19   1      }
+  20          
+  21          void set_key_val(u8 i)
+  22          {
+  23   1              down_count++;                                            
+  24   1                                                              //第一个数组显示的时0xbf所以直接从1开始
+  25   1              down_table[down_count] = smg_duan[i];
+  26   1                                                              //将每一个值对应的数码管BCD码赋值给down_table[]对应的地方
+  27   1              key_number[down_count] = i;                     
+  28   1                                                              //这个是将每个数字记起来再次按下设置时 来设置最大最小值
+  29   1      }
+  30          
+  31          void keyproc()
+  32          {
+  33   1              keyscanf();
+  34   1              if(down_count == 2)down_count = 5;
+  35   1                              //最大值设置完后跳到最小值对应的数码管也就是第6、7位这里等于五是因为按键按下时会自加1
+  36   1              if(down_count >= 8)down_count = 8;
+  37   1                              //为了最大最小值输入完后不让down_count接着增加
+  38   1      
+  39   1              if(trg == 0x48)   //s8
+  40   1              {
+  41   2                      if(set_flag == 0)set_flag = ~set_flag;
+  42   2                      if(down_count >= 7)              //最大最小值输入完后
+  43   2                      {
+  44   3                              down_count = 0;                 //归零下次设置可以接着重新设置
+  45   3                              set_flag = ~set_flag;              //不要忘了转回正常界面 
+  46   3                              down_table[1] = 0xff; //保证修改过的四个数组下次再按下设置键数码管全灭  
+  47   3                              down_table[2] = 0xff;           
+  48   3                              down_table[6] = 0xff;
+  49   3                              down_table[7] = 0xff;
+  50   3                              Tmin = key_number[6]*10 + key_number[7];   //计算最大值最小值
+  51   3                              Tmax = key_number[1]*10 + key_number[2];
+  52   3                              if(Tmax < Tmin)                                    //判断值是否有效（最大值是否大于最小值）
+  53   3                              {
+  54   4                                      P2 = ((P2&0x1f)|0x80);P0 = 0xfd;P2 &= 0x1f;               //L2亮
+  55   4                                      error_flag = 1;         //继电器标志位，为0时，开启继电器
+C51 COMPILER V9.00   KEY                                                                   04/03/2022 20:15:39 PAGE 2   
+
+  56   4                              }
+  57   3                              else
+  58   3                              {
+  59   4                                      P2 = ((P2&0x1f)|0x80);P0 = 0xff;P2 &= 0x1f;              //Led灭
+  60   4                                      error_flag = 0;
+  61   4                              }
+  62   3                      }                                       
+  63   2              }
+  64   1      
+  65   1              if(trg == 0x28)   //s12                   清除键 牵扯到的值都要初始化
+  66   1              {
+  67   2                      down_count = 0;                    //计数清零
+  68   2                      down_table[1] = 0xff;
+  69   2                      down_table[2] = 0xff;
+  70   2                      down_table[6] = 0xff;
+  71   2                      down_table[7] = 0xff;   
+  72   2              }
+  73   1              if(set_flag)
+  74   1              {                                       //0-9的按键
+  75   2                      if(trg == 0x81){set_key_val(0);} //s7
+  76   2                      if(trg == 0x41){set_key_val(1);} //s11
+  77   2                      if(trg == 0x21){set_key_val(2);} //s15                        
+  78   2                      if(trg == 0x82){set_key_val(3);} //s6                    
+  79   2                      if(trg == 0x42){set_key_val(4);} //s10                
+  80   2                      if(trg == 0x22){set_key_val(5);} //s14                  
+  81   2                      if(trg == 0x84){set_key_val(6);} //s5                     
+  82   2                      if(trg == 0x44){set_key_val(7);} //s9                         
+  83   2                      if(trg == 0x24){set_key_val(8);} //s13                       
+  84   2                      if(trg == 0x88){set_key_val(9);} //s4 
+  85   2              }                            
+  86   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    328    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      9    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

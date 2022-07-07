@@ -1,0 +1,250 @@
+C51 COMPILER V9.00   MAIN                                                                  04/08/2022 08:09:37 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE main.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include"reg52.h"
+   2          #include"key.h"
+   3          #include"iic.h"
+   4          sfr AUXR = 0x8e;
+   5          #define u8 unsigned char
+   6          #define u16 unsigned int
+   7          
+   8          u8 code smg_du[] = {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90};
+   9          u8 code smg_we[] = {0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};
+  10          u8 table_f[8] = {0xff,0xff,0xff,0xff,0xff,0xff,0xff,0x8e};//F 0x8E
+  11          u8 table_t[8] = {0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xc8};//N 0xC8
+  12          u8 table_v[8] = {0xc0,0xc0,0xc0,0xff,0xff,0xc0,0xbf,0xc1};//U 0xC1
+  13          
+  14          u8      count_key;
+  15          u16 count_f,count_t,count_s7,cycle;
+  16          bit     key_flag,flag;
+  17          extern u8 trg = 0,cont = 0,work_mode = 0,channel = 0;
+  18          extern u16 frency = 0,dac1 = 0,dac3 = 0,frency_temp = 0,dac_temp_3 = 0;
+  19          extern bit s7_flag = 0,cont_flag = 0,led_flag = 0;
+  20          float r_dac; 
+  21          
+  22          void Timer0Init(void);
+  23          void Timer1Init(void);
+  24          void HC573(u8 n,u8 value);
+  25          void table_convert();
+  26          void LEDproc();
+  27          void Delay5ms();
+  28          
+  29          void main()
+  30          {
+  31   1              HC573(5,0x00);
+  32   1              HC573(4,0xff);
+  33   1              Timer0Init();
+  34   1              Timer1Init();
+  35   1              while(1)
+  36   1              {
+  37   2                      cycle = 1000000 / frency; //获得单位为us的周期
+  38   2                      if(key_flag){key_flag = 0;Keyproc();}  //按键消抖
+  39   2                      if(flag)
+  40   2                      {
+  41   3                              flag = 0;
+  42   3                              r_dac = read_8591(1);              //读通道3电压
+  43   3                              dac1 = (u16)r_dac *100 /51.0f;
+  44   3                              Delay5ms();                                              //延时5ms
+  45   3                              r_dac = read_8591(3);             //读通道3电压
+  46   3                              dac3 = (u16)r_dac *100 /51.0f;
+  47   3                      }
+  48   2                      LEDproc();
+  49   2                      table_convert();
+  50   2      
+  51   2              }
+  52   1      }
+  53          
+  54          void Timer0isr() interrupt 1
+  55          {
+C51 COMPILER V9.00   MAIN                                                                  04/08/2022 08:09:37 PAGE 2   
+
+  56   1              count_f++;
+  57   1      }
+  58          
+  59          void display();
+  60          void Timer1isr() interrupt 3
+  61          {
+  62   1              count_key++;count_t++;
+  63   1              if(count_key >= 6){count_key = 0;key_flag = 1;}
+  64   1      
+  65   1              if(count_t >= 500){count_t = 0;frency = count_f;count_f = 0;flag = 1;}
+  66   1              
+  67   1              if(s7_flag)count_s7++; //长按时开启计时
+  68   1              else count_s7 = 0;         //松开时计时清零
+  69   1              if(count_s7 >= 500){count_s7 = 0;led_flag = ~led_flag;} //计时1s，开启或关闭led功能
+  70   1                              
+  71   1              display();
+  72   1      } 
+  73          
+  74          void LEDproc()
+  75          {
+  76   1              u8 led = 0xff;
+  77   1              
+  78   1              if(dac3 < dac_temp_3)led &= ~0x01;
+  79   1              else led |= 0x01;
+  80   1      
+  81   1              if(frency > frency_temp)led &= ~0x02;
+  82   1              else led |= 0x02;
+  83   1      
+  84   1              if(work_mode == 0)led &= ~0x04;
+  85   1              else led |= 0x04;
+  86   1      
+  87   1              if(work_mode == 1)led &= ~0x08;
+  88   1              else led |= 0x08;
+  89   1      
+  90   1              if(work_mode == 2)led &= ~0x10;
+  91   1              else led |= 0x10;
+  92   1      
+  93   1              if(s7_flag == 0)  //当标志位为0是进入判断，从而实现松开有效
+  94   1              {
+  95   2                      if(led_flag)HC573(4,0xff);      //默认打开，上电第一次为关闭
+  96   2                      else HC573(4,led);
+  97   2              }
+  98   1      }
+  99          
+ 100          void display()
+ 101          {
+ 102   1              static u8 i;
+ 103   1              HC573(7,0xff);
+ 104   1              HC573(6,smg_we[i]);
+ 105   1              if(work_mode == 0)HC573(7,table_f[i]);
+ 106   1              if(work_mode == 1)HC573(7,table_t[i]);
+ 107   1              if(work_mode == 2)HC573(7,table_v[i]);
+ 108   1              i++;if(i >= 8)i = 0;
+ 109   1      }
+ 110          
+ 111          void table_convert()
+ 112          {
+ 113   1              if(work_mode == 0)
+ 114   1              {
+ 115   2                      table_f[0] = smg_du[frency % 10];
+ 116   2      
+ 117   2                      if(frency < 10)table_f[1] = 0xff;
+C51 COMPILER V9.00   MAIN                                                                  04/08/2022 08:09:37 PAGE 3   
+
+ 118   2                      else table_f[1] = smg_du[frency /10 % 10];
+ 119   2      
+ 120   2                      if(frency < 100)table_f[2] = 0xff;
+ 121   2                      else table_f[2] = smg_du[frency /100 % 10];
+ 122   2      
+ 123   2                      if(frency < 1000)table_f[3] = 0xff;
+ 124   2                      else table_f[3] = smg_du[frency /1000 % 10];
+ 125   2      
+ 126   2                      if(frency < 10000)table_f[4] = 0xff;
+ 127   2                      else table_f[4] = smg_du[frency /10000 % 10];
+ 128   2      
+ 129   2                      if(frency < 100000)table_f[5] = 0xff;
+ 130   2                      else table_f[5] = smg_du[frency /100000 % 10];
+ 131   2      
+ 132   2                      if(frency < 1000000)table_f[6] = 0xff;
+ 133   2                      else table_f[6] = smg_du[frency /1000000 % 10];
+ 134   2              }
+ 135   1              if(work_mode == 1)
+ 136   1              {
+ 137   2                      table_t[0] = smg_du[cycle % 10];
+ 138   2      
+ 139   2                      if(cycle < 10)table_t[1] = 0xff;
+ 140   2                      else table_t[1] = smg_du[cycle /10 % 10];
+ 141   2      
+ 142   2                      if(cycle < 100)table_t[2] = 0xff;
+ 143   2                      else table_t[2] = smg_du[cycle /100 % 10];
+ 144   2      
+ 145   2                      if(cycle < 1000)table_t[3] = 0xff;
+ 146   2                      else table_t[3] = smg_du[cycle /1000 % 10];
+ 147   2      
+ 148   2                      if(cycle < 10000)table_t[4] = 0xff;
+ 149   2                      else table_t[4] = smg_du[cycle /10000 % 10];
+ 150   2      
+ 151   2                      if(cycle < 100000)table_t[5] = 0xff;
+ 152   2                      else table_t[5] = smg_du[cycle /100000 % 10];
+ 153   2      
+ 154   2                      if(cycle < 1000000)table_t[6] = 0xff;
+ 155   2                      else table_t[6] = smg_du[cycle /1000000 % 10];  
+ 156   2              }
+ 157   1              if(work_mode == 2)
+ 158   1              {
+ 159   2                      if(channel == 1)
+ 160   2                      {
+ 161   3                      table_v[0] = smg_du[dac1 % 10];
+ 162   3                      table_v[1] = smg_du[dac1 /10 % 10];
+ 163   3                      table_v[2] = smg_du[dac1 /100 % 10] & 0x7f;
+ 164   3                      table_v[5] = smg_du[1];
+ 165   3                      }
+ 166   2                      if(channel == 3)
+ 167   2                      {
+ 168   3                              table_v[0] = smg_du[dac3 % 10];
+ 169   3                              table_v[1] = smg_du[dac3 /10 % 10];
+ 170   3                              table_v[2] = smg_du[dac3 /100 % 10] & 0x7f;
+ 171   3                              table_v[5] = smg_du[3];
+ 172   3                      }
+ 173   2              }
+ 174   1      }
+ 175          
+ 176          void HC573(u8 n,u8 value)
+ 177          {
+ 178   1              switch(n)
+ 179   1              {
+C51 COMPILER V9.00   MAIN                                                                  04/08/2022 08:09:37 PAGE 4   
+
+ 180   2                      case 4:  P2 = (P2 & 0x1f) | 0x80; P0 = value; P2 &= 0x1f; break;
+ 181   2                      case 5:  P2 = (P2 & 0x1f) | 0xa0; P0 = value; P2 &= 0x1f; break;
+ 182   2                      case 6:  P2 = (P2 & 0x1f) | 0xc0; P0 = value; P2 &= 0x1f; break;
+ 183   2                      case 7:  P2 = (P2 & 0x1f) | 0xe0; P0 = value; P2 &= 0x1f; break;
+ 184   2              }
+ 185   1      }
+ 186          
+ 187          void Timer0Init(void)           //@12.000MHz定时器0用作计数
+ 188          {
+ 189   1              AUXR |= 0x80;   
+ 190   1              TMOD |= 0x04;   
+ 191   1              TL0 = 0xff;             
+ 192   1              TH0 = 0xff;             
+ 193   1              TF0 = 0;        
+ 194   1              TR0 = 1;                
+ 195   1              ET0 = 1;
+ 196   1              EA = 1;
+ 197   1      }
+ 198          
+ 199          void Timer1Init(void)           //2毫秒@12.000MHz  定时器0用作定时
+ 200          {
+ 201   1              AUXR |= 0x40;           //定时器时钟1T模式
+ 202   1              TMOD &= 0x0F;           //设置定时器模式
+ 203   1              TL1 = 0x40;             //设置定时初始值
+ 204   1              TH1 = 0xA2;             //设置定时初始值
+ 205   1              TF1 = 0;                //清除TF1标志
+ 206   1              TR1 = 1;                //定时器1开始计时
+ 207   1              ET1 = 1;
+ 208   1              EA = 1;
+ 209   1      }
+ 210          
+ 211          void Delay5ms()         //@12.000MHz
+ 212          {
+ 213   1              unsigned char i, j;
+ 214   1      
+ 215   1              i = 59;
+ 216   1              j = 90;
+ 217   1              do
+ 218   1              {
+ 219   2                      while (--j);
+ 220   2              } while (--i);
+ 221   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1534    ----
+   CONSTANT SIZE    =     18    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     52       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      5    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

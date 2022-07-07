@@ -1,0 +1,239 @@
+C51 COMPILER V9.00   MAIN                                                                  06/16/2022 08:54:44 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE main.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include"reg52.h"
+   2          #include"key.h"
+   3          #include"ds1302.h"
+   4          #include"onewire.h"
+   5          sfr AUXR = 0x8e;
+   6          #define u8 unsigned char
+   7          #define u16 unsigned int
+   8          
+   9          u8 code smg_du[] = {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90};  //段码
+  10          u8 code smg_we[] = {0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};              //位选
+  11          u8 table_temp[] = {0xc0,0xc0,0xc0,0xff,0xff,0xff,0xf9,0xc1};    //温度显示
+  12          u8 table_time[] = {0xc0,0xc0,0xbf,0xc0,0xc0,0xff,0xa4,0xc1};    //时间显示
+  13          u8 table_temp_par[] = {0xc0,0xc0,0xff,0xff,0xff,0xff,0xb0,0xc1};//参数显示
+  14          
+  15          u8 temperature;
+  16          u8 count_key,count_tt;
+  17          u16 count_temp,count_t,count_ts;
+  18          bit temp_flag,key_flag,relay_flag,L1_flag,L3_flash;
+  19          extern u8 trg = 0,cont = 0;
+  20          extern u8 face_mode = 0,temp_par = 23;
+  21          extern u8 temp_dot = 0;
+  22          extern u8 sec = 0x50,min = 0x59,hour = 0x23;
+  23          extern bit work_flag = 0,time_flag = 0;
+  24          
+  25          void Timer0Init(void);    //函数声明
+  26          void HC573(u8 n,u8 value);
+  27          void Delay100ms();
+  28          void table_convert();
+  29          void relayproc();
+  30          void ledproc();
+  31          
+  32          void main()
+  33          {
+  34   1              u8 x;
+  35   1              HC573(5,0x00);  //关闭led，继电器
+  36   1              HC573(4,0xff);
+  37   1              for(x = 0;x <= 10;x++){temperature = rd_temperature();Delay100ms();}  //读掉初值85
+  38   1              init_time();
+  39   1              Timer0Init();   
+  40   1              while(1)
+  41   1              {                       
+  42   2                      if(temp_flag){temp_flag = 0; temperature = rd_temperature();}   //读温
+  43   2                      if(key_flag){key_flag = 0;Keyproc();}   //消抖
+  44   2                      ledproc();                        //led功能
+  45   2                      read_ds1302();
+  46   2                      table_convert();         //数码管数组，放在主函数里一直读
+  47   2              }
+  48   1      }
+  49          
+  50          
+  51          
+  52          void display();
+  53          void Timer0isr() interrupt 1
+  54          {
+  55   1              count_temp++;count_key++;
+C51 COMPILER V9.00   MAIN                                                                  06/16/2022 08:54:44 PAGE 2   
+
+  56   1              if(count_temp >= 450){count_temp = 0;temp_flag = 1;}    //0.9s
+  57   1              if(count_key >= 6){count_key = 0;key_flag = 1;}           //12ms
+  58   1      
+  59   1              if((min == 0)&&(sec == 0))                        //当整点时，打开L1和继电器标志位
+  60   1              {
+  61   2                      if(work_flag){relay_flag = 1;} 
+  62   2                      L1_flag = 1;
+  63   2              }
+  64   1              
+  65   1              if(relay_flag)
+  66   1              {
+  67   2                      count_t++;
+  68   2                      count_tt++;
+  69   2                      if(count_t >= 2500)      //5s
+  70   2                      {
+  71   3                              count_t = 0;
+  72   3                              relay_flag = 0;
+  73   3                      }
+  74   2                      if(count_tt >= 50)         //0.1s
+  75   2                      {
+  76   3                              count_tt = 0;
+  77   3                              L3_flash = ~L3_flash;    //取反，闪烁
+  78   3                      }
+  79   2              }
+  80   1      
+  81   1              if(L1_flag)                               //L1 5s后灭
+  82   1              {        
+  83   2                      count_ts++;
+  84   2                      if(count_ts >= 2500)    //5s
+  85   2                      {
+  86   3                              count_ts = 0;           
+  87   3                              L1_flag = 0;                    
+  88   3                      }
+  89   2              }
+  90   1      
+  91   1              if(work_flag == 1)
+  92   1              {
+  93   2                      if(relay_flag)
+  94   2                      {P2 = (P2 & 0x1f) | 0xa0;P0 &= 0x10;P2 &= 0x1f;}// 打开继电器   
+  95   2                      else    
+  96   2                      {P2 = (P2 & 0x1f) | 0xa0;P0 &= 0x00;P2 &= 0x1f;}//关闭继电器    
+  97   2              }
+  98   1      
+  99   1              if(work_flag == 0)
+ 100   1              {        
+ 101   2                      if(temperature > temp_par)
+ 102   2                      {P2 = (P2 & 0x1f) | 0xa0;P0 &= 0x10;P2 &= 0x1f;}//打开继电器
+ 103   2                      else 
+ 104   2                      {P2 = (P2 & 0x1f) | 0xa0;P0 &= 0x00;P2 &= 0x1f;}//关闭继电器
+ 105   2              }
+ 106   1      
+ 107   1              display();        //数码管显示函数
+ 108   1      }
+ 109          
+ 110          void ledproc()           //led功能
+ 111          {
+ 112   1              u8 led = 0xff;
+ 113   1              if(L1_flag)led = ~0x01;
+ 114   1              else led |= 0x01; 
+ 115   1              
+ 116   1              if(work_flag)led |= 0x02;
+ 117   1              else led &= ~0x02;
+C51 COMPILER V9.00   MAIN                                                                  06/16/2022 08:54:44 PAGE 3   
+
+ 118   1              
+ 119   1              if((relay_flag)&&(L3_flash))led &= ~0x04;
+ 120   1              else led |= 0x04; 
+ 121   1              EA = 0;
+ 122   1              HC573(4,led);
+ 123   1              EA = 1;
+ 124   1      }
+ 125          
+ 126          void display()     //数码管显示函数
+ 127          {
+ 128   1              static u8 i;
+ 129   1              HC573(7,0xff);   //消隐
+ 130   1              HC573(6,smg_we[i]);      //位选
+ 131   1              if(face_mode == 0)HC573(7,table_temp[i]);
+ 132   1              if(face_mode == 1)HC573(7,table_time[i]);
+ 133   1              if(face_mode == 2)HC573(7,table_temp_par[i]);
+ 134   1              i++; if(i >= 8)i = 0;   
+ 135   1      }
+ 136          
+ 137          void table_convert()    //数码管数组
+ 138          {
+ 139   1              if(face_mode == 0)
+ 140   1              {
+ 141   2              table_temp[0] = smg_du[temp_dot % 10];
+ 142   2              table_temp[1] = smg_du[temperature % 10] & 0x7f;
+ 143   2              table_temp[2] = smg_du[temperature / 10 % 10];
+ 144   2              }
+ 145   1      
+ 146   1              if(face_mode == 1)
+ 147   1              {
+ 148   2                      if(time_flag)
+ 149   2                      {
+ 150   3                              table_time[0] = smg_du[sec % 10];
+ 151   3                              table_time[1] = smg_du[sec  /10 % 10];
+ 152   3                              table_time[3] = smg_du[min % 10];
+ 153   3                              table_time[4] = smg_du[min / 10 % 10];
+ 154   3                      }
+ 155   2                      else
+ 156   2                      {
+ 157   3                              table_time[0] = smg_du[min % 10];
+ 158   3                              table_time[1] = smg_du[min  /10 % 10];
+ 159   3                              table_time[3] = smg_du[hour % 10];
+ 160   3                              table_time[4] = smg_du[hour / 10 % 10];
+ 161   3                      }
+ 162   2              }
+ 163   1      
+ 164   1              if(face_mode == 2)
+ 165   1              {
+ 166   2                      table_temp_par[0] = smg_du[temp_par % 10];
+ 167   2                      table_temp_par[1] = smg_du[temp_par / 10];
+ 168   2              }
+ 169   1      }
+ 170          
+ 171          void HC573(u8 n,u8 value)
+ 172          {
+ 173   1              switch(n)
+ 174   1              {
+ 175   2                      case 4:  P0 = value; P2 = (P2 & 0x1f) | 0x80;  P2 &= 0x1f; break;
+ 176   2                      case 5:  P0 = value; P2 = (P2 & 0x1f) | 0xa0;  P2 &= 0x1f; break;
+ 177   2                      case 6:  P0 = value; P2 = (P2 & 0x1f) | 0xc0;   P2 &= 0x1f; break;
+ 178   2                      case 7:  P0 = value; P2 = (P2 & 0x1f) | 0xe0;   P2 &= 0x1f; break;      
+ 179   2              }       
+C51 COMPILER V9.00   MAIN                                                                  06/16/2022 08:54:44 PAGE 4   
+
+ 180   1      }
+ 181          
+ 182          void Timer0Init(void)           //2毫秒@12.000MHz
+ 183          {
+ 184   1              AUXR |= 0x80;           //定时器时钟1T模式
+ 185   1              TMOD &= 0xF0;           //设置定时器模式
+ 186   1              TL0 = 0x40;             //设置定时初始值
+ 187   1              TH0 = 0xA2;             //设置定时初始值
+ 188   1              TF0 = 0;                //清除TF0标志
+ 189   1              TR0 = 1;                //定时器0开始计时
+ 190   1              ET0 = 1;
+ 191   1              EA = 1;
+ 192   1      }
+ 193          
+ 194          void Delay100ms()               //@12.000MHz
+ 195          {
+ 196   1              unsigned char i, j, k;
+ 197   1      
+ 198   1              _nop_();
+ 199   1              _nop_();
+ 200   1              i = 5;
+ 201   1              j = 144;
+ 202   1              k = 71;
+ 203   1              do
+ 204   1              {
+ 205   2                      do
+ 206   2                      {
+ 207   3                              while (--k);
+ 208   3                      } while (--j);
+ 209   2              } while (--i);
+ 210   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    702    ----
+   CONSTANT SIZE    =     18    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     42       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      7    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

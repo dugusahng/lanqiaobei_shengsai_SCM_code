@@ -1,0 +1,128 @@
+C51 COMPILER V9.00   DS1302                                                                04/04/2022 09:04:21 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE DS1302
+OBJECT MODULE PLACED IN ds1302.OBJ
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE ds1302.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          /*
+   2            程序说明: DS1302驱动程序
+   3            软件环境: Keil uVision 4.10 
+   4            硬件环境: CT107单片机综合实训平台 8051，12MHz
+   5            日    期: 2011-8-9
+   6          */
+   7          
+   8          #include <reg52.h>
+   9          #include <intrins.h>
+  10          #include"ds1302.h"
+  11          
+  12          sbit SCK=P1^7;          
+  13          sbit SDA=P2^3;          
+  14          sbit RST = P1^3;   // DS1302复位                                                                                                
+  15          
+  16          extern char sec,min,hour; 
+  17          
+  18          void Write_Ds1302(unsigned  char temp) 
+  19          {
+  20   1              unsigned char i;
+  21   1              for (i=0;i<8;i++)       
+  22   1              { 
+  23   2                      SCK=0;
+  24   2                      SDA=temp&0x01;
+  25   2                      temp>>=1; 
+  26   2                      SCK=1;
+  27   2              }
+  28   1      }   
+  29          
+  30          void Write_Ds1302_Byte( unsigned char address,unsigned char dat )     
+  31          {
+  32   1              RST=0;  _nop_();
+  33   1              SCK=0;  _nop_();
+  34   1              RST=1;  _nop_();  
+  35   1              Write_Ds1302(address);  
+  36   1              Write_Ds1302(dat);              
+  37   1              RST=0; 
+  38   1      }
+  39          
+  40          unsigned char Read_Ds1302_Byte ( unsigned char address )
+  41          {
+  42   1              unsigned char i,temp=0x00;
+  43   1              RST=0;  _nop_();
+  44   1              SCK=0;  _nop_();
+  45   1              RST=1;  _nop_();
+  46   1              Write_Ds1302(address);
+  47   1              for (i=0;i<8;i++)       
+  48   1              {               
+  49   2                      SCK=0;
+  50   2                      temp>>=1;       
+  51   2                      if(SDA)
+  52   2                      temp|=0x80;     
+  53   2                      SCK=1;
+  54   2              } 
+  55   1              RST=0;  _nop_();
+C51 COMPILER V9.00   DS1302                                                                04/04/2022 09:04:21 PAGE 2   
+
+  56   1              SCK=0;  _nop_();
+  57   1              SCK=1;  _nop_();
+  58   1              SDA=0;  _nop_();
+  59   1              SDA=1;  _nop_();
+  60   1              return (temp);                  
+  61   1      }
+  62          
+  63          u8 DEC_BCD(u8 dec)
+  64          {
+  65   1              u8 x;
+  66   1              x = dec / 10;
+  67   1              x <<= 4;
+  68   1              dec %= 10;
+  69   1              dec &= 0x0f;
+  70   1              return (x | dec); 
+  71   1      }
+  72          
+  73          u8 BCD_DEC(u8 bcd)
+  74          {
+  75   1              u8 x;
+  76   1              x = bcd >> 4;
+  77   1              bcd &= 0x0f; 
+  78   1              bcd = x * 10 + bcd;
+  79   1              return bcd; 
+  80   1      }
+  81          
+  82          void init_time()
+  83          {
+  84   1              sec = DEC_BCD(sec);
+  85   1              min = DEC_BCD(min);
+  86   1              hour = DEC_BCD(hour);
+  87   1              Write_Ds1302_Byte(0x8e,0x00);
+  88   1              Write_Ds1302_Byte(0x80,sec);
+  89   1              Write_Ds1302_Byte(0x82,min);
+  90   1              Write_Ds1302_Byte(0x84,hour);
+  91   1              Write_Ds1302_Byte(0x8e,0x80);
+  92   1      }
+  93          
+  94          void read_ds1302()
+  95          {
+  96   1              u8 d;
+  97   1              d = Read_Ds1302_Byte(0x81);
+  98   1              sec = BCD_DEC(d); 
+  99   1              d = Read_Ds1302_Byte(0x83);
+ 100   1              min = BCD_DEC(d); 
+ 101   1              d = Read_Ds1302_Byte(0x85);
+ 102   1              hour = BCD_DEC(d); 
+ 103   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    212    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

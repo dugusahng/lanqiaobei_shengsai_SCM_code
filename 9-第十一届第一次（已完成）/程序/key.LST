@@ -1,0 +1,114 @@
+C51 COMPILER V9.00   KEY                                                                   04/03/2022 19:16:36 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE KEY
+OBJECT MODULE PLACED IN key.OBJ
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE key.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include "key.h"
+   2          
+   3          u8 trg,cont;
+   4          extern u8 face_mode,inv_key_val;
+   5          extern u16      count_H,count_L;        
+   6          extern bit key_val_flag;
+   7          extern int dac_thr_val;
+   8          
+   9          void keyscanf()                  //setkbd和getkbd宏定义放在了 iic头文件里了     主要是输入和检测功能
+  10          {
+  11   1              u8 readdata;
+  12   1              setkbd(0xf0);
+  13   1              readdata = getkbd;
+  14   1              setkbd(0x0f);
+  15   1              readdata = (readdata | getkbd) ^ 0xff;
+  16   1              trg = readdata & (readdata ^ cont);
+  17   1              cont = readdata;  
+  18   1      }
+  19          
+  20          void keyproc()
+  21          {
+  22   1              keyscanf();
+  23   1              if(trg == 0x28)   //s12
+  24   1              {
+  25   2                      key_val_flag = 0;
+  26   2                      if((inv_key_val == 3)&&(key_val_flag == 0))inv_key_val = 0; 
+  27   2                      face_mode++;
+  28   2                      if(face_mode == 2)Write_byte_24c02(0x02,dac_thr_val/10);        //????  
+  29   2                      if(face_mode == 3)face_mode = 0;                        
+  30   2              }
+  31   1      
+  32   1              if(trg == 0x24)   //s13
+  33   1              {               
+  34   2                      if(face_mode == 2)
+  35   2                      {
+  36   3                              key_val_flag = 0;
+  37   3                              if((inv_key_val == 3)&&(key_val_flag == 0))inv_key_val = 0;  
+  38   3                              count_H = 0;
+  39   3                              count_L = 0; 
+  40   3                      }
+  41   2                      else
+  42   2                      {
+  43   3                              inv_key_val++;                                  
+  44   3                      }                                               
+  45   2              }
+  46   1              if(trg == 0x18)  //s16          +
+  47   1              {               
+  48   2                      if(face_mode == 1)
+  49   2                      {       
+  50   3                              key_val_flag = 0;
+  51   3                              if((inv_key_val == 3)&&(key_val_flag == 0))inv_key_val = 0;                                               
+  52   3                              dac_thr_val = dac_thr_val + 50;
+  53   3                              if(dac_thr_val >= 501)dac_thr_val = 0;
+  54   3                                                                      
+  55   3                      }
+C51 COMPILER V9.00   KEY                                                                   04/03/2022 19:16:36 PAGE 2   
+
+  56   2                      else
+  57   2                      {
+  58   3                              inv_key_val++;                  
+  59   3                      }                               
+  60   2              }       
+  61   1              
+  62   1              if(trg == 0x14)  //s17          -
+  63   1              {                       
+  64   2                      if(face_mode == 1) 
+  65   2                      {
+  66   3                              key_val_flag = 0;
+  67   3                              if((inv_key_val == 3)&&(key_val_flag == 0))inv_key_val = 0; 
+  68   3                              dac_thr_val = dac_thr_val - 50;
+  69   3                              if(dac_thr_val <= -1)dac_thr_val = 500; 
+  70   3                                                                                                                                                              
+  71   3                      }
+  72   2                      else
+  73   2                      {
+  74   3                              inv_key_val++;                  
+  75   3                      }               
+  76   2              }
+  77   1              if(trg == 0x12)inv_key_val++;                   //无关操作
+  78   1              if(trg == 0x11)inv_key_val++;
+  79   1              if(trg == 0x22)inv_key_val++;
+  80   1              if(trg == 0x21)inv_key_val++;
+  81   1              if(trg == 0x41)inv_key_val++;
+  82   1              if(trg == 0x42)inv_key_val++;
+  83   1              if(trg == 0x44)inv_key_val++;
+  84   1              if(trg == 0x48)inv_key_val++;
+  85   1              if(trg == 0x81)inv_key_val++;
+  86   1              if(trg == 0x82)inv_key_val++;
+  87   1              if(trg == 0x84)inv_key_val++;
+  88   1              if(trg == 0x88)inv_key_val++;
+  89   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    364    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      2    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,220 @@
+C51 COMPILER V9.00   MAIN                                                                  04/03/2022 17:32:02 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE main.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include"reg52.h"
+   2          #include"iic.h"
+   3          #include"key.h"
+   4          #include"onewire.h"
+   5          #include "intrins.h"
+   6          sfr AUXR = 0x8e;
+   7          #define u8 unsigned char
+   8          #define u16 unsigned int
+   9          
+  10          u8 code smg_du[] = {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90};
+  11          u8 code smg_we[] = {0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};
+  12          u8 smg_temp[8];    //C 0xc6
+  13          u8 smg_temp_val[8];        //P 0x8c
+  14          
+  15          u8 temperature,count_key,count_temp;
+  16          u16;
+  17          bit key_flag,temp_flag;
+  18          extern u8 trg = 0,cont = 0;
+  19          extern u8 temp_up_old = 30,temp_low_old = 20,temp_up_new = 30,temp_low_new = 20;
+  20          extern u16;
+  21          extern bit table_flag = 0,temp_val_mode = 1,L4_flag = 0;
+  22          
+  23          void Timer0Init(void);
+  24          void Delay100ms();
+  25          void table_convert();
+  26          void LEDproc();
+  27          void DACproc();
+  28          
+  29          void main()
+  30          {
+  31   1              u8 x;
+  32   1              P0 = 0x00;P2 = (P2 & 0x1f) | 0xa0;P2 &= 0x1f;
+  33   1              P0 = 0xff;P2 = (P2 & 0x1f) | 0x80;P2 &= 0x1f;
+  34   1      //      read_8591(1);
+  35   1              for(x = 0;x <= 10;x++){rd_temperature();Delay100ms();}
+  36   1              Timer0Init();
+  37   1              while(1)
+  38   1              {       
+  39   2                      table_convert();
+  40   2                      if(temp_flag){temp_flag = 0;temperature = rd_temperature();}
+  41   2                      if(key_flag){key_flag = 0;Keyproc();}
+  42   2                      DACproc();
+  43   2                      LEDproc();
+  44   2                      
+  45   2              }
+  46   1      }
+  47          
+  48          void display();
+  49          void Timer0isr() interrupt 1
+  50          {
+  51   1              count_key++;count_temp++;
+  52   1              if(count_key >= 6){count_key = 0;key_flag = 1;}
+  53   1              if(count_temp >= 250){count_temp = 0; temp_flag = 1;}
+  54   1              display();              
+  55   1      }
+C51 COMPILER V9.00   MAIN                                                                  04/03/2022 17:32:02 PAGE 2   
+
+  56          
+  57          void display()
+  58          {
+  59   1              static u8 i;
+  60   1              P0 = 0xff;P2 = (P2 & 0x1f) | 0xe0;P2 &= 0x1f;
+  61   1              P0 = smg_we[i];P2 = (P2 & 0x1f) | 0xc0;P2 &= 0x1f;
+  62   1              if(table_flag)
+  63   1              {
+  64   2                      P0 = smg_temp_val[i];P2 = (P2 & 0x1f) | 0xe0;P2 &= 0x1f;
+  65   2              }
+  66   1              else
+  67   1              {
+  68   2                      P0 = smg_temp[i];P2 = (P2 & 0x1f) | 0xe0;P2 &= 0x1f;
+  69   2              }
+  70   1              i++;if(i >= 8)i = 0;
+  71   1      }
+  72          
+  73          void DACproc()
+  74          {
+  75   1              
+  76   1              if(temperature > temp_up_new)
+  77   1              {
+  78   2                      write_8591(210);  //理论204                     比实际值小6
+  79   2              }
+  80   1              else if((temperature >= temp_low_new)&&(temperature <= temp_up_new))
+  81   1              {
+  82   2                      write_8591(158);   //理论153      比实际值小5
+  83   2              }
+  84   1              else if(temperature < temp_low_new)
+  85   1              {
+  86   2                      write_8591(107); //理论102              比实际值小5
+  87   2              }
+  88   1                      
+  89   1      }
+  90          
+  91          void LEDproc()
+  92          {
+  93   1              P0 = 0xff;
+  94   1              EA = 0;
+  95   1              if(temperature > temp_up_new)
+  96   1              {
+  97   2                      P0 &= ~0x01;P2 = (P2 & 0x1f) | 0x80;P2 &= 0x1f; 
+  98   2              }
+  99   1              else
+ 100   1              {
+ 101   2                      P0 |= 0x01;P2 = (P2 & 0x1f) | 0x80;P2 &= 0x1f;
+ 102   2              }
+ 103   1      
+ 104   1              if((temperature >= temp_low_new)&&(temperature <= temp_up_new))
+ 105   1              {
+ 106   2                      P0 &= ~0x02;P2 = (P2 & 0x1f) | 0x80;P2 &= 0x1f;
+ 107   2              }
+ 108   1              else
+ 109   1              {
+ 110   2                      P0 |= 0x02;P2 = (P2 & 0x1f) | 0x80;P2 &= 0x1f;
+ 111   2              }
+ 112   1      
+ 113   1              if(temperature < temp_low_new)
+ 114   1              {
+ 115   2                      P0 &= ~0x04;P2 = (P2 & 0x1f) | 0x80;P2 &= 0x1f;
+ 116   2              }
+ 117   1              else
+C51 COMPILER V9.00   MAIN                                                                  04/03/2022 17:32:02 PAGE 3   
+
+ 118   1              {
+ 119   2                      P0 |= 0x04;P2 = (P2 & 0x1f) | 0x80;P2 &= 0x1f;
+ 120   2              }
+ 121   1      
+ 122   1              if(L4_flag)
+ 123   1              {
+ 124   2                      P0 &= ~0x08;P2 = (P2 & 0x1f) | 0x80;P2 &= 0x1f;
+ 125   2              }
+ 126   1      
+ 127   1              else
+ 128   1              {
+ 129   2                      P0 |= 0x08;P2 = (P2 & 0x1f) | 0x80;P2 &= 0x1f;
+ 130   2              }
+ 131   1              EA = 1;
+ 132   1                      
+ 133   1      }
+ 134          
+ 135          
+ 136          
+ 137          void table_convert()
+ 138          {
+ 139   1              if(table_flag)
+ 140   1              {
+ 141   2                      smg_temp_val[0] = smg_du[temp_low_new % 10];
+ 142   2                      smg_temp_val[1] = smg_du[temp_low_new / 10];
+ 143   2                      smg_temp_val[2] = 0xff;
+ 144   2                      smg_temp_val[3] = smg_du[temp_up_new % 10];
+ 145   2                      smg_temp_val[4] = smg_du[temp_up_new / 10];
+ 146   2                      smg_temp_val[5] = 0xff;
+ 147   2                      smg_temp_val[6] = 0xff;
+ 148   2                      smg_temp_val[7] = 0x8c;
+ 149   2              }
+ 150   1              else
+ 151   1              {
+ 152   2                      smg_temp[0] = smg_du[temperature % 10];
+ 153   2                      smg_temp[1] = smg_du[temperature / 10];
+ 154   2                      smg_temp[2] = 0xff;
+ 155   2                      smg_temp[3] = 0xff;
+ 156   2                      smg_temp[4] = 0xff;
+ 157   2                      smg_temp[5] = 0xff;
+ 158   2                      smg_temp[6] = 0xff;
+ 159   2                      smg_temp[7] = 0xc6;
+ 160   2              }
+ 161   1      }
+ 162          
+ 163          void Timer0Init(void)           //2毫秒@12.000MHz
+ 164          {
+ 165   1              AUXR |= 0x80;           //定时器时钟1T模式
+ 166   1              TMOD &= 0xF0;           //设置定时器模式
+ 167   1              TL0 = 0x40;             //设置定时初始值
+ 168   1              TH0 = 0xA2;             //设置定时初始值
+ 169   1              TF0 = 0;                //清除TF0标志
+ 170   1              TR0 = 1;                //定时器0开始计时
+ 171   1              ET0 = 1;
+ 172   1              EA = 1;
+ 173   1      }
+ 174          
+ 175          void Delay100ms()               //@12.000MHz
+ 176          {
+ 177   1              unsigned char i, j, k;
+ 178   1      
+ 179   1              _nop_();
+C51 COMPILER V9.00   MAIN                                                                  04/03/2022 17:32:02 PAGE 4   
+
+ 180   1              _nop_();
+ 181   1              i = 5;
+ 182   1              j = 144;
+ 183   1              k = 71;
+ 184   1              do
+ 185   1              {
+ 186   2                      do
+ 187   2                      {
+ 188   3                              while (--k);
+ 189   3                      } while (--j);
+ 190   2              } while (--i);
+ 191   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    531    ----
+   CONSTANT SIZE    =     18    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     26       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      5    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

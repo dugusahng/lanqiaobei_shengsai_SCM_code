@@ -1,0 +1,93 @@
+C51 COMPILER V9.00   KEY                                                                   04/03/2022 17:32:02 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE KEY
+OBJECT MODULE PLACED IN key.OBJ
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE key.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include"key.h"
+   2          
+   3          extern u8 trg,cont;
+   4          extern char temp_up_old,temp_low_old,temp_up_new,temp_low_new;
+   5          extern bit table_flag,temp_val_mode,L4_flag;
+   6          
+   7          void Keyscanf()
+   8          {
+   9   1              u8 readdata = P3 ^ 0xff;
+  10   1              trg = readdata & (readdata ^ cont);
+  11   1              cont = readdata;
+  12   1      }
+  13          
+  14          void Keyproc()
+  15          {
+  16   1              Keyscanf();
+  17   1              if(trg & 0x01)
+  18   1              {
+  19   2                      if(table_flag)
+  20   2                      {
+  21   3                              if(temp_val_mode == 0)
+  22   3                              {                               
+  23   4                                      temp_up_new--;if(temp_up_new <= 0)temp_up_new = 0;
+  24   4                              }
+  25   3                              if(temp_val_mode == 1)
+  26   3                              {
+  27   4                                      temp_low_new--;if(temp_low_new <= 0)temp_low_new = 0;
+  28   4                              }
+  29   3                      }       
+  30   2              }
+  31   1              if(trg & 0x02)
+  32   1              {
+  33   2                      if(table_flag)
+  34   2                      {       
+  35   3                              if(temp_val_mode == 0)
+  36   3                              {                               
+  37   4                                      temp_up_new++;if(temp_up_new > 99)temp_up_new = 99;
+  38   4                              }
+  39   3                              if(temp_val_mode == 1)
+  40   3                              {                               
+  41   4                                      temp_low_new++;if(temp_low_new > 99)temp_low_new = 99;
+  42   4                              }
+  43   3                      }
+  44   2              }
+  45   1              if(trg & 0x04)
+  46   1              {
+  47   2                      temp_val_mode = ~temp_val_mode;
+  48   2                      
+  49   2              }
+  50   1              if(trg & 0x08)
+  51   1              {       
+  52   2                      
+  53   2                      if(temp_up_new >= temp_low_new)
+  54   2                      {
+  55   3                              temp_up_old = temp_up_new;
+C51 COMPILER V9.00   KEY                                                                   04/03/2022 17:32:02 PAGE 2   
+
+  56   3                              temp_low_old = temp_low_new;
+  57   3                              table_flag = ~table_flag;
+  58   3                              if(temp_up_new >= temp_low_new)L4_flag = 0;
+  59   3                      }
+  60   2                      else
+  61   2                      {
+  62   3                              temp_up_new = temp_up_old;
+  63   3                              temp_low_new = temp_low_old;                    
+  64   3                              table_flag = ~table_flag;
+  65   3                              L4_flag = 1;    
+  66   3                      }
+  67   2              }
+  68   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    158    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

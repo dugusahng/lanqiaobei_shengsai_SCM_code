@@ -1,0 +1,59 @@
+C51 COMPILER V9.00   KEY                                                                   04/04/2022 13:17:41 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE KEY
+OBJECT MODULE PLACED IN key.OBJ
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE key.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include"key.h"
+   2          
+   3          extern u8 trg,cont;
+   4          extern bit smg_flag,led_flag,fre_flag,dac_mode;
+   5          
+   6          void Keyscanf()
+   7          {
+   8   1              u8 ReadData = P3 ^ 0xff;
+   9   1              trg = ReadData & (ReadData ^ cont);
+  10   1              cont = ReadData;
+  11   1      }
+  12          
+  13          void Keyproc()
+  14          {
+  15   1              Keyscanf();
+  16   1      
+  17   1              if(trg & 0x01)
+  18   1              {
+  19   2                      smg_flag = ~smg_flag;
+  20   2              }
+  21   1      
+  22   1              if(trg & 0x02)
+  23   1              {
+  24   2                      led_flag = ~led_flag;
+  25   2              }
+  26   1      
+  27   1              if(trg & 0x04)
+  28   1              {
+  29   2                      dac_mode = ~dac_mode;
+  30   2              }
+  31   1      
+  32   1              if(trg & 0x08)
+  33   1              {
+  34   2                      fre_flag = ~fre_flag;
+  35   2              }
+  36   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     44    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

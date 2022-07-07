@@ -1,0 +1,217 @@
+C51 COMPILER V9.00   MAIN                                                                  04/05/2022 14:46:59 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE main.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include"reg52.h"
+   2          #include"key.h"
+   3          #include"onewire.h"
+   4          #include"iic.h"
+   5          sfr AUXR = 0x8e;
+   6          #define u8 unsigned char
+   7          #define u16 unsigned int
+   8          
+   9          u8 code smg_du[] = {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90};    //段码
+  10          u8 code smg_we[] = {0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};            //位选
+  11          u8 table_temp[] = {0xc0,0xc0,0xc0,0xc0,0xff,0xff,0xff,0xc6};   //温度数组
+  12          u8 table_par[] = {0xc0,0xc0,0xff,0xff,0xff,0xff,0xff,0x8c};       //参数
+  13          u8 table_dac[] = {0xc0,0xc0,0xc0,0xff,0xff,0xff,0xff,0x88};       //电压
+  14                           
+  15          u8 temperature;
+  16          u16 dac;
+  17          u8 count_key,count_temp,count_dac;
+  18          bit key_flag,temp_flag,dac_flag;
+  19          extern u8 trg = 0,cont = 0,table_mode = 0,temp_par_1 = 25;
+  20          extern char temp_par = 25;
+  21          extern u8 temp_dot = 0;
+  22          extern bit dac_mode = 1;
+  23          
+  24          void Timer0Init(void);                    //函数声明
+  25          void Delay100ms();
+  26          void HC573(u8 n,u8 value);
+  27          void table_convert();
+  28          void DACproc();
+  29          void LEDproc();
+  30          
+  31          void main()
+  32          {
+  33   1              u8 x;
+  34   1              HC573(5,0x00);
+  35   1              HC573(4,0xff);
+  36   1              for(x = 0;x <= 10;x++){temperature = rd_temperature();Delay100ms();}  //把初值85读掉
+  37   1              Timer0Init();
+  38   1              while(1)
+  39   1              {
+  40   2                      table_convert();
+  41   2                      if(temp_flag){temp_flag = 0;temperature = rd_temperature();}
+  42   2                      if(key_flag){key_flag = 0;Keyproc();}
+  43   2                      if(dac_flag)
+  44   2                      {
+  45   3                              DACproc();              //dac输出函数
+  46   3                      }
+  47   2                      EA = 0;
+  48   2                      LEDproc();      //led功能函数
+  49   2                      EA = 1;
+  50   2              }
+  51   1      }
+  52          
+  53          void DACproc()
+  54          {
+  55   1              if(dac_mode)
+C51 COMPILER V9.00   MAIN                                                                  04/05/2022 14:46:59 PAGE 2   
+
+  56   1              {
+  57   2                      if(temperature < temp_par_1)    //温度小于温度参数1时
+  58   2                      {
+  59   3                              dac = 0;
+  60   3                              wirte_8591(dac);                                                        
+  61   3                      }
+  62   2                      else
+  63   2                      {
+  64   3                              dac = 500;
+  65   3                              wirte_8591(dac / 100 * 51);
+  66   3                      }
+  67   2              }
+  68   1              else
+  69   1              {
+  70   2                      if(temperature <= 20)
+  71   2                      {
+  72   3                              dac = 100;
+  73   3                              wirte_8591(dac / 100 * 51);             
+  74   3                      }
+  75   2                      else if((temperature > 20)&&(temperature < 40))
+  76   2                      {
+  77   3                              dac = (temperature * 0.15) * 100;
+  78   3                              wirte_8591((temperature * 0.15) * 51);                  
+  79   3                      }
+  80   2                      else if(temperature >= 40)
+  81   2                      {
+  82   3                              dac = 400;
+  83   3                              wirte_8591(dac / 100 * 51);
+  84   3                      }
+  85   2              }
+  86   1      }
+  87          
+  88          void LEDproc()
+  89          {
+  90   1              u8 led = 0xff;
+  91   1              if(dac_mode)led &= ~0x01;                       
+  92   1              else led |= 0x01;       
+  93   1                      
+  94   1              if(table_mode == 0)led &= ~0x02;        
+  95   1              else led |= 0x02;
+  96   1                      
+  97   1              if(table_mode == 1)led &= ~0x04;
+  98   1              else led |= 0x04;
+  99   1                      
+ 100   1              if(table_mode == 2)led &= ~0x08;
+ 101   1              else led |= 0x08;
+ 102   1      
+ 103   1              P2 = (P2 & 0x1f) | 0x80; P0 = led; P2 &= 0x1f;
+ 104   1      }
+ 105          
+ 106          void display();
+ 107          void Timer0isr() interrupt 1
+ 108          {
+ 109   1              count_key++;count_temp++;count_dac++;
+ 110   1              if(count_key >= 6){count_key = 0;key_flag = 1;}
+ 111   1              if(count_temp >= 20){count_temp = 0;temp_flag = 1;}
+ 112   1              if(count_dac >= 200){count_dac = 0;dac_flag = 1;}
+ 113   1              display();
+ 114   1      }
+ 115          
+ 116          void display()
+ 117          {
+C51 COMPILER V9.00   MAIN                                                                  04/05/2022 14:46:59 PAGE 3   
+
+ 118   1              static u8 i;
+ 119   1              HC573(7,0xff);
+ 120   1              HC573(6,smg_we[i]);
+ 121   1              if(table_mode == 0)HC573(7,table_temp[i]);
+ 122   1              else if(table_mode == 1)HC573(7,table_par[i]);
+ 123   1              else if(table_mode == 2)HC573(7,table_dac[i]);
+ 124   1              i++;if(i >= 8)i = 0;
+ 125   1      }
+ 126          
+ 127          void table_convert()
+ 128          {
+ 129   1              if(table_mode == 0)
+ 130   1              {
+ 131   2                      table_temp[0] = smg_du[temp_dot % 10];
+ 132   2                      table_temp[1] = smg_du[temp_dot / 10];
+ 133   2                      table_temp[2] = smg_du[temperature % 10] & 0x7f;
+ 134   2                      table_temp[3] = smg_du[temperature / 10];
+ 135   2              }
+ 136   1              if(table_mode == 1)
+ 137   1              {
+ 138   2                      table_par[0] = smg_du[temp_par % 10];
+ 139   2                      table_par[1] = smg_du[temp_par / 10];
+ 140   2              }
+ 141   1              if(table_mode == 2)
+ 142   1              {
+ 143   2                      table_dac[0] = smg_du[dac % 10];
+ 144   2                      table_dac[1] = smg_du[dac / 10 % 10];
+ 145   2                      table_dac[2] = smg_du[dac / 100] & 0x7f;
+ 146   2              }                
+ 147   1      }
+ 148          
+ 149          void HC573(u8 n,u8 value)
+ 150          {
+ 151   1              switch(n)
+ 152   1              {
+ 153   2                      case 4: P2 = (P2 & 0x1f) | 0x80; P0 = value; P2 &= 0x1f; break;
+ 154   2                      case 5: P2 = (P2 & 0x1f) | 0xa0; P0 = value; P2 &= 0x1f; break;
+ 155   2                      case 6: P2 = (P2 & 0x1f) | 0xc0; P0 = value; P2 &= 0x1f; break;
+ 156   2                      case 7: P2 = (P2 & 0x1f) | 0xe0; P0 = value; P2 &= 0x1f; break;
+ 157   2              }
+ 158   1      }
+ 159          
+ 160          void Timer0Init(void)           //2毫秒@12.000MHz
+ 161          {
+ 162   1              AUXR |= 0x80;           //定时器时钟1T模式
+ 163   1              TMOD &= 0xF0;           //设置定时器模式
+ 164   1              TL0 = 0x40;             //设置定时初始值
+ 165   1              TH0 = 0xA2;             //设置定时初始值
+ 166   1              TF0 = 0;                //清除TF0标志
+ 167   1              TR0 = 1;                //定时器0开始计时
+ 168   1              ET0 = 1;
+ 169   1              EA = 1;
+ 170   1      }
+ 171          
+ 172          void Delay100ms()               //@12.000MHz
+ 173          {
+ 174   1              unsigned char i, j, k;
+ 175   1      
+ 176   1              _nop_();
+ 177   1              _nop_();
+ 178   1              i = 5;
+ 179   1              j = 144;
+C51 COMPILER V9.00   MAIN                                                                  04/05/2022 14:46:59 PAGE 4   
+
+ 180   1              k = 71;
+ 181   1              do
+ 182   1              {
+ 183   2                      do
+ 184   2                      {
+ 185   3                              while (--k);
+ 186   3                      } while (--j);
+ 187   2              } while (--i);
+ 188   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    762    ----
+   CONSTANT SIZE    =     18    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     37       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      4    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
